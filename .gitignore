@@ -1,0 +1,45 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs and cache
+/storage/logs/*
+/storage/cache/*
+/storage/sessions/*
+!storage/logs/.gitkeep
+!storage/cache/.gitkeep
+!storage/sessions/.gitkeep
+
+# Compiled assets
+/public/build/
+/public/hot
+/public/mix-manifest.json
+
+# Testing
+.phpunit.result.cache
+coverage/
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Temporary files
+*.tmp
+*.temp
