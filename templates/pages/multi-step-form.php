@@ -206,6 +206,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="/assets/js/form.js"></script>
+    <script src="/assets/js/multi-step-form.js"></script>
 </body>
 </html>

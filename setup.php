@@ -1,19 +1,32 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Core\Database;
-
-echo "Setting up database...\n";
+use App\Config\Config;
 
 try {
-    $db = Database::getConnection();
+    echo "Setting up database...\n";
     
-    // Read and execute schema
-    $sql = file_get_contents(__DIR__ . '/database/schema.sql');
-    $db->exec($sql);
+    // Get database instance
+    $db = Database::getInstance();
+    $pdo = $db->getConnection();  // Fixed - call on instance, not statically
+    
+    // Read and execute the schema file
+    $schema = file_get_contents(__DIR__ . '/schema.sql');
+    
+    // Split by semicolon and execute each statement
+    $statements = array_filter(array_map('trim', explode(';', $schema)));
+    
+    foreach ($statements as $statement) {
+        if (!empty($statement)) {
+            $pdo->exec($statement);
+        }
+    }
     
     echo "Database setup completed successfully!\n";
+    
 } catch (Exception $e) {
-    echo "Error: " . $e->getMessage() . "\n";
+    echo "Error setting up database: " . $e->getMessage() . "\n";
+    exit(1);
 }

@@ -2,35 +2,76 @@
 
 namespace App\Core;
 
-use App\Config\Config;
 use PDO;
 use PDOException;
+use App\Config\Config;
 
 class Database
 {
-    private static ?PDO $connection = null;
+    private static ?Database $instance = null;
+    private PDO $connection;
     
-    public static function getConnection(): PDO
+    private function __construct()
     {
-        if (self::$connection === null) {
-            $config = Config::getInstance();
-            
-            $host = $config->get('database.host');
-            $port = $config->get('database.port');
-            $database = $config->get('database.database');
-            $username = $config->get('database.username');
-            $password = $config->get('database.password');
-            
-            try {
-                $dsn = "mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4";
-                self::$connection = new PDO($dsn, $username, $password);
-                self::$connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                self::$connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-            } catch (PDOException $e) {
-                throw new \Exception("Database connection failed: " . $e->getMessage());
-            }
-        }
+        $config = Config::getInstance();
         
-        return self::$connection;
+        $host = $config->get('database.host', 'localhost');
+        $dbname = $config->get('database.name');
+        $username = $config->get('database.username');
+        $password = $config->get('database.password');
+        $charset = $config->get('database.charset', 'utf8mb4');
+        
+        $dsn = "mysql:host={$host};dbname={$dbname};charset={$charset}";
+        
+        try {
+            $this->connection = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        } catch (PDOException $e) {
+            throw new \Exception("Connection failed: " . $e->getMessage());
+        }
+    }
+    
+    public static function getInstance(): Database
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    public function getConnection(): PDO
+    {
+        return $this->connection;
+    }
+    
+    public function execute(string $sql, array $params = []): bool
+    {
+        $stmt = $this->connection->prepare($sql);
+        return $stmt->execute($params);
+    }
+    
+    public function fetch(string $sql, array $params = []): ?array
+    {
+        $stmt = $this->connection->prepare($sql);
+        $stmt->execute($params);
+        $result = $stmt->fetch();
+        return $result ?: null;
+    }
+    
+    public function fetchAll(string $sql, array $params = []): array
+    {
+        $stmt = $this->connection->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+    
+    public function insert(string $sql, array $params = []): int
+    {
+        $stmt = $this->connection->prepare($sql);
+        $stmt->execute($params);
+        return (int)$this->connection->lastInsertId();
     }
 }

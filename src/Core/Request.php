@@ -4,63 +4,86 @@ namespace App\Core;
 
 class Request
 {
-    public function getPath(): string
+    private array $params = [];
+    private array $query = [];
+    private array $body = [];
+    private string $method;
+    private string $path;
+    
+    public function __construct()
+    {
+        $this->query = $_GET;
+        $this->body = $_POST;
+        $this->params = array_merge($this->query, $this->body);
+        $this->method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $this->path = $this->parsePath();
+    }
+    
+    private function parsePath(): string
     {
         $path = $_SERVER['REQUEST_URI'] ?? '/';
         $position = strpos($path, '?');
         
-        if ($position === false) {
-            return $path;
+        if ($position !== false) {
+            $path = substr($path, 0, $position);
         }
         
-        return substr($path, 0, $position);
+        return $path;
     }
     
-    public function getMethod(): string
+    public function get(string $key, mixed $default = null): mixed
     {
-        return strtoupper($_SERVER['REQUEST_METHOD']);
+        return $this->query[$key] ?? $default;
     }
     
-    public function get(string $key = null, $default = null)
+    public function post(string $key, mixed $default = null): mixed
     {
-        if ($key === null) {
-            return $_GET;
-        }
-        
-        return $_GET[$key] ?? $default;
+        return $this->body[$key] ?? $default;
     }
     
-    public function post(string $key = null, $default = null)
+    public function all(): array
     {
-        if ($key === null) {
-            return $_POST;
-        }
-        
-        return $_POST[$key] ?? $default;
+        return $this->params;
     }
     
-    public function input(string $key, $default = null)
+    public function only(array $keys): array
     {
-        return $_REQUEST[$key] ?? $default;
+        return array_intersect_key($this->params, array_flip($keys));
     }
     
-    public function session(string $key = null, $default = null)
+    public function has(string $key): bool
     {
-        if ($key === null) {
-            return $_SESSION;
-        }
-        
-        return $_SESSION[$key] ?? $default;
+        return isset($this->params[$key]);
     }
     
-    public function cookie(string $key, $default = null)
+    public function param(string $key, mixed $default = null): mixed
     {
-        return $_COOKIE[$key] ?? $default;
+        return $this->params[$key] ?? $default;
     }
     
-    public function file(string $key)
+    public function method(): string
     {
-        return $_FILES[$key] ?? null;
+        return $this->method;
+    }
+    
+    public function getMethod(): string  // Added this method
+    {
+        return $this->method;
+    }
+    
+    public function getPath(): string     // Added this method
+    {
+        return $this->path;
+    }
+    
+    public function isPost(): bool
+    {
+        return $this->method === 'POST';
+    }
+    
+    public function isGet(): bool
+    {
+        return $this->method === 'GET';
     }
     
     public function ip(): string
@@ -69,8 +92,25 @@ class Request
             return $_SERVER['HTTP_CLIENT_IP'];
         } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             return $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } else {
+            return $_SERVER['REMOTE_ADDR'] ?? '';
         }
-        
-        return $_SERVER['REMOTE_ADDR'] ?? '';
+    }
+    
+    public function header(string $key, mixed $default = null): mixed
+    {
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $key));
+        return $_SERVER[$key] ?? $default;
+    }
+    
+    public function isAjax(): bool
+    {
+        return $this->header('X-Requested-With') === 'XMLHttpRequest';
+    }
+    
+    public function isSecure(): bool
+    {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
+            || $_SERVER['SERVER_PORT'] == 443;
     }
 }

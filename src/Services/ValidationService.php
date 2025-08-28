@@ -4,96 +4,84 @@ namespace App\Services;
 
 class ValidationService
 {
-    private array $tollFreeAreaCodes = ['800', '822', '833', '844', '855', '866', '877', '880', '887', '888', '889'];
+    private array $errors = [];
     
     public function validatePhone(string $phone): array
     {
-        $errors = [];
+        $this->errors = [];
         
-        // Remove non-numeric characters
+        // Remove all non-numeric characters
         $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
         
+        // Check length
         if (strlen($cleanPhone) !== 10) {
-            $errors[] = 'Phone number must be 10 digits';
+            $this->errors[] = 'Phone number must be 10 digits';
         }
         
-        return $errors;
+        // Check for toll-free numbers
+        $tollFreePrefix = ['800', '822', '833', '844', '855', '866', '877', '880', '887', '888', '889'];
+        if (in_array(substr($cleanPhone, 0, 3), $tollFreePrefix)) {
+            $this->errors[] = 'Toll-free numbers are not accepted';
+        }
+        
+        // Check for repeated digits
+        if (preg_match('/(\d)\1{9}/', $cleanPhone)) {
+            $this->errors[] = 'Invalid phone number format';
+        }
+        
+        // Check for repeated prefix
+        if (preg_match('/(\d)\1{2}/', substr($cleanPhone, 3, 3))) {
+            $this->errors[] = 'Invalid phone number format';
+        }
+        
+        return $this->errors;
     }
     
     public function isValidPhone(string $phone): bool
     {
-        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-        
-        // Check if toll-free
-        $areaCode = substr($cleanPhone, 0, 3);
-        if (in_array($areaCode, $this->tollFreeAreaCodes)) {
-            return false;
-        }
-        
-        // Check for repeated digits (e.g., 1111111111)
-        if (preg_match('/(\d)\1{9}/', $cleanPhone)) {
-            return false;
-        }
-        
-        // Check for repeated prefix (e.g., xxx-111-xxxx)
-        $prefix = substr($cleanPhone, 3, 3);
-        if (preg_match('/(\d)\1{2}/', $prefix)) {
-            return false;
-        }
-        
-        return true;
+        return empty($this->validatePhone($phone));
     }
     
-    public function validateLead(array $data): array
+    public function validateEmail(string $email): array
     {
-        $errors = [];
+        $this->errors = [];
         
-        // Required fields
-        $required = ['first_name', 'last_name', 'email', 'phone', 'dob', 'zip'];
-        foreach ($required as $field) {
-            if (empty($data[$field])) {
-                $errors[$field] = ucfirst(str_replace('_', ' ', $field)) . ' is required';
-            }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->errors[] = 'Invalid email format';
         }
         
-        // Email validation
-        if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors['email'] = 'Invalid email address';
+        // Check for banned domains
+        $bannedDomains = ['mailinator.com', 'guerrillamail.com', 'temp-mail.org'];
+        $domain = substr(strrchr($email, "@"), 1);
+        
+        if (in_array($domain, $bannedDomains)) {
+            $this->errors[] = 'Please use a valid email address';
         }
         
-        // Check for banned emails
-        if ($this->isBannedEmail($data['email'] ?? '')) {
-            $errors['email'] = 'This email domain is not allowed';
-        }
-        
-        // Phone validation
-        if (!empty($data['phone'])) {
-            $phoneErrors = $this->validatePhone($data['phone']);
-            if (!empty($phoneErrors)) {
-                $errors['phone'] = $phoneErrors[0];
-            } elseif (!$this->isValidPhone($data['phone'])) {
-                $errors['phone'] = 'Invalid phone number';
-            }
-        }
-        
-        // Age validation
-        if (!empty($data['age']) && ($data['age'] < 18 || $data['age'] > 100)) {
-            $errors['age'] = 'Invalid age';
-        }
-        
-        // State validation
-        if (!empty($data['state']) && in_array($data['state'], ['NY', 'MA'])) {
-            $errors['state'] = 'Service not available in your state';
-        }
-        
-        return $errors;
+        return $this->errors;
     }
     
-    private function isBannedEmail(string $email): bool
+    public function validateDOB(int $month, int $day, int $year): array
     {
-        $bannedDomains = ['mailinator.com', 'guerrillamail.com', '10minutemail.com'];
-        $domain = substr(strrchr($email, '@'), 1);
+        $this->errors = [];
         
-        return in_array($domain, $bannedDomains);
+        if (!checkdate($month, $day, $year)) {
+            $this->errors[] = 'Invalid date of birth';
+        }
+        
+        // Calculate age
+        $dob = new \DateTime("$year-$month-$day");
+        $now = new \DateTime();
+        $age = $now->diff($dob)->y;
+        
+        if ($age < 18) {
+            $this->errors[] = 'You must be at least 18 years old';
+        }
+        
+        if ($age > 120) {
+            $this->errors[] = 'Invalid date of birth';
+        }
+        
+        return $this->errors;
     }
 }

@@ -7,6 +7,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use App\Config\Config;
 use App\Core\Router;
 use App\Core\View;
+use App\Controllers\ThankYouController;
 
 // Initialize configuration
 $config = Config::getInstance();
@@ -56,6 +57,8 @@ $router->get('/get-quotes', function($request, $response) {
     
     echo View::render('multi-step-form', $data);
 });
+
+$router->get('/thank-you', [ThankYouController::class, 'index']);
 
 // API routes
 $router->post('/api/check-phone', function($request, $response) {
